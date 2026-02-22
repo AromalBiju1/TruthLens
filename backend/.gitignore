@@ -1,0 +1,61 @@
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.*
+
+# =========================
+# Virtual Environments
+# =========================
+venv/
+.venv/
+env/
+ENV/
+
+# =========================
+# Python & Byte-compiled / Optimized / DLL files
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# =========================
+# Machine Learning / CNN Models & Data
+# =========================
+# Don't commit heavy model weights!
+*.pt
+*.pth
+*.h5
+*.hdf5
+*.keras
+*.onnx
+*.pkl
+*.joblib
+
+# Datasets and user uploads
+data/
+datasets/
+uploads/
+temp/
+media/
+
+# Jupyter Notebooks (if you use them for testing the CNN)
+.ipynb_checkpoints/
+*.ipynb
+
+# =========================
+# FastAPI & Testing
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# =========================
+# IDEs & OS Specific
+# =========================
+.vscode/
+.idea/
+.DS_Store
+__MACOSX/
