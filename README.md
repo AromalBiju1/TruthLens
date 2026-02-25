@@ -12,7 +12,7 @@ TruthLens is a full-stack media forensics platform that analyzes images and vide
 
 ## ✨ Features
 
-- 🧠 **CNN Ensemble Detection** — EfficientNet-B4 + CLIP-based classifier fine-tuned on FaceForensics++, DFDC, and Celeb-DF datasets
+- 🧠 **CNN Ensemble Detection** — EfficientNet-B7 + CLIP-based classifier fine-tuned on FaceForensics++, DFDC, and Celeb-DF datasets
 - 📡 **Frequency Domain Analysis** — DCT/FFT artifact detection that catches signals invisible to the human eye, generalized across new AI generators
 - 🔎 **Reverse Image Search** — Cross-references the uploaded media against the web to establish provenance and detect reused or manipulated originals
 - 🤖 **LLM Reasoning Agent** — An AI agent that synthesizes all signals (ML score, frequency anomalies, search provenance, EXIF metadata) into a transparent, explainable verdict
