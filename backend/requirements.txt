@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+pillow
+numpy
+opencv-python-headless
+scipy
+torch
+torchvision
+timm
+transformers
+langchain
+langchain-groq
+google-search-results
+slowapi
