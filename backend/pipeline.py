@@ -7,7 +7,7 @@ from tools.reverse_search import reverse_search
 from agent.agent import run_agent
 from models.face_extractor import extract_face, face_to_bytes
 from models.gradcam import generate_heatmap
-
+from functools import partial
 
 WEIGHTS = {
     "efficientnet": 0.40,
@@ -63,8 +63,10 @@ async def run_pipeline(job_id: str, image_bytes: bytes, filename: str, manager):
 
         await send_step(manager, job_id, "ml", "running", "Generating Grad-CAM heatmap...")
         model, transform, device = get_model_and_transform()
-        heatmap_b64 = await asyncio.to_thread(
-            generate_heatmap, model, transform, device, analysis_bytes
+        loop = asyncio.get_event_loop()
+        heatmap_b64 = await loop.run_in_executor(
+            None,
+            partial(generate_heatmap, model, transform, device, analysis_bytes)
         )
 
         # frequency
@@ -76,7 +78,15 @@ async def run_pipeline(job_id: str, image_bytes: bytes, filename: str, manager):
         # exif
         await send_step(manager, job_id, "exif", "running")
         exif_data = await asyncio.to_thread(extract_exif, image_bytes)
-        exif_detail = "Metadata stripped — suspicious" if exif_data.get("stripped") else "Metadata intact"
+        exif_stripped = exif_data.get("stripped", True)
+        exif_expected = exif_data.get("stripped_expected", False)
+        fmt = exif_data.get("format", "")
+        if not exif_stripped:
+            exif_detail = f"Metadata intact (camera: {exif_data.get('camera') or 'unknown'})"
+        elif exif_expected:
+            exif_detail = f"No metadata ({fmt}) — normal for web images, not suspicious"
+        else:
+            exif_detail = "Metadata stripped — moderate manipulation signal"
         await send_step(manager, job_id, "exif", "done", exif_detail)
 
         # reverse search

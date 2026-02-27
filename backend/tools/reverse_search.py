@@ -15,7 +15,7 @@ def reverse_search(image_bytes: bytes, filename: str = "", exif: dict = {}) -> l
 
         with DDGS() as ddgs:
             results = list(ddgs.images(
-                keywords=query,
+                query,
                 max_results=5
             ))
 
