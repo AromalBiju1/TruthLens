@@ -10,26 +10,26 @@ export default function Home() {
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
 
- const handleUpload = async (file: File) => {
-  setIsUploading(true);
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
+  const handleUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analyze`, {
-      method: "POST",
-      body: formData,
-    });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analyze`, {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+      if (!res.ok) throw new Error(`Backend error: ${res.status}`);
 
-    const data = await res.json();
-    router.push(`/results/${data.job_id}`);
-  } catch (err) {
-    console.error("Upload failed:", err);
-    setIsUploading(false);
-  }
-};
+      const data = await res.json();
+      router.push(`/results/${data.job_id}`);
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setIsUploading(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#050a05] text-white font-mono">
@@ -39,18 +39,18 @@ export default function Home() {
       {/* Nav */}
       <nav className="border-b border-[#00ff46]/20 px-6 py-4 flex items-center justify-between relative z-20">
         <div className="flex items-center gap-3 cursor-pointer">
-  {/* The Icon */}
-  <img 
-    src={logo.src} 
-    alt="TruthLens Icon" 
-    className="h-10 w-10 object-contain mix-blend-screen opacity-90" 
-  />
-  
-  {/* The Text */}
-  <span className="font-mono text-xl font-bold tracking-tight text-white">
-    Truth<span className="text-[#00ff46]">Lens</span>
-  </span>
-</div>
+          {/* The Icon */}
+          <img
+            src={logo.src}
+            alt="TruthLens Icon"
+            className="h-10 w-10 object-contain mix-blend-screen opacity-90"
+          />
+
+          {/* The Text */}
+          <span className="font-mono text-xl font-bold tracking-tight text-white">
+            Truth<span className="text-[#00ff46]">Lens</span>
+          </span>
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-white/60 text-xs tracking-widest">MEDIA FORENSICS v0.1</span>
           <a
@@ -87,24 +87,24 @@ export default function Home() {
       </section>
 
 
-     {/* Features */}
-<section className="w-full max-w-3xl mx-auto pt-8 pb-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-20">
-  {[
-    { icon: Brain, label: "CNN Ensemble", desc: "EfficientNet + CLIP deepfake detection" },
-    { icon: Zap, label: "Frequency Analysis", desc: "DCT/FFT artifact detection" },
-    { icon: Search, label: "Reverse Search", desc: "Web provenance cross-referencing" },
-    { icon: Shield, label: "AI Agent Verdict", desc: "LLM synthesizes all signals" },
-  ].map(({ icon: Icon, label, desc }) => (
-    <div
-      key={label}
-      className="p-4 rounded border border-white/15 bg-[#00ff46]/5 hover:border-[#00ff46]/40 hover:bg-[#00ff46]/10 transition-all group flex flex-col h-full"
-    >
-      <Icon className="w-5 h-5 text-[#00ff46] mb-3 group-hover:drop-shadow-[0_0_6px_#00ff46] transition-all" />
-      <div className="text-xs font-bold text-[#00ff46]/80 mb-2 tracking-wide uppercase">{label}</div>
-      <div className="text-xs text-white/70 leading-relaxed font-sans mt-auto">{desc}</div>
-    </div>
-  ))}
-</section>
+      {/* Features */}
+      <section className="w-full max-w-3xl mx-auto pt-8 pb-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-20">
+        {[
+          { icon: Brain, label: "CNN Ensemble", desc: "AI-image-detector ViT + CLIP deepfake detection" },
+          { icon: Zap, label: "Frequency Analysis", desc: "DCT/FFT artifact detection" },
+          { icon: Search, label: "Reverse Search", desc: "Web provenance cross-referencing" },
+          { icon: Shield, label: "AI Agent Verdict", desc: "LLM synthesizes all signals" },
+        ].map(({ icon: Icon, label, desc }) => (
+          <div
+            key={label}
+            className="p-4 rounded border border-white/15 bg-[#00ff46]/5 hover:border-[#00ff46]/40 hover:bg-[#00ff46]/10 transition-all group flex flex-col h-full"
+          >
+            <Icon className="w-5 h-5 text-[#00ff46] mb-3 group-hover:drop-shadow-[0_0_6px_#00ff46] transition-all" />
+            <div className="text-xs font-bold text-[#00ff46]/80 mb-2 tracking-wide uppercase">{label}</div>
+            <div className="text-xs text-white/70 leading-relaxed font-sans mt-auto">{desc}</div>
+          </div>
+        ))}
+      </section>
 
       {/* Footer */}
       <footer className="text-center py-8 text-white/60 text-xs border-t border-[#00ff46]/10 tracking-widest relative z-20">

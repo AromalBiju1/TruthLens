@@ -12,7 +12,7 @@ TruthLens is a full-stack media forensics platform that analyzes images and vide
 
 ## ✨ Features
 
-- 🧠 **CNN Ensemble Detection** — EfficientNet-B7 + CLIP ViT-L/14 zero-shot classifier running concurrently on CUDA
+- 🧠 **CNN Ensemble Detection** — `umm-maybe/AI-image-detector` (ViT fine-tuned on real vs AI images) + CLIP ViT-L/14 zero-shot classifier running concurrently on CUDA
 - 👤 **Real Face Extraction** — InsightFace buffalo_l detects, crops and aligns faces before model inference
 - 📡 **Frequency Domain Analysis** — DCT/FFT artifact detection that catches physics-level signals invisible to the human eye
 - 🔎 **Reverse Image Search** — Cross-references uploaded media against the web to establish provenance
@@ -43,7 +43,7 @@ TruthLens is a full-stack media forensics platform that analyzes images and vide
 │   ML Pipeline   │ │ Agent Layer │
 │                 │ │             │
 │ InsightFace     │ │ LangChain   │
-│ EfficientNet-B7 │ │ + Groq LLM  │
+│ AI-img-detector │ │ + Groq LLM  │
 │ CLIP ViT-L/14   │ │ llama-3.3   │
 │ DCT/FFT Freq    │ │ 70b         │
 │ Grad-CAM        │ └─────────────┘
@@ -59,7 +59,7 @@ TruthLens is a full-stack media forensics platform that analyzes images and vide
 | Frontend | Next.js 14, TypeScript, TailwindCSS |
 | Backend | FastAPI, Python 3.14, Async pipeline |
 | Face Extraction | InsightFace buffalo_l on CUDA |
-| ML Models | EfficientNet-B7 (FP16), CLIP ViT-L/14 |
+| ML Models | `umm-maybe/AI-image-detector` (ViT, FP16), CLIP ViT-L/14 |
 | Frequency Analysis | DCT/FFT via NumPy + OpenCV |
 | Explainability | Grad-CAM heatmap overlay |
 | Agent | LangChain + Groq (llama-3.3-70b) |
@@ -130,7 +130,7 @@ TruthLens/
     ├── main.py                        # FastAPI routes + WebSocket
     ├── pipeline.py                    # Analysis orchestrator
     ├── models/
-    │   ├── efficientnet.py            # EfficientNet-B7 on CUDA
+    │   ├── efficientnet.py            # AI-image-detector (ViT) on CUDA
     │   ├── clip_classifier.py         # CLIP zero-shot classifier
     │   ├── frequency.py               # DCT/FFT analysis
     │   ├── face_extractor.py          # InsightFace extraction
@@ -151,7 +151,7 @@ TruthLens uses a **multi-signal weighted ensemble** rather than relying on a sin
 
 | Signal | Weight | What it catches |
 |---|---|---|
-| EfficientNet-B7 | 40% | Visual artifacts, facial inconsistencies |
+| `umm-maybe/AI-image-detector` ViT | 40% | Visual artifacts, facial inconsistencies — pretrained on real vs AI image dataset |
 | CLIP ViT-L/14 | 35% | Generalizes to unseen generators including MiniMax, Kling, Hailuo |
 | DCT/FFT Frequency | 25% | Physics-level artifacts all generators leave behind |
 | EXIF Metadata | signal | Stripped metadata is a strong manipulation indicator |
@@ -165,8 +165,8 @@ TruthLens uses a **multi-signal weighted ensemble** rather than relying on a sin
 TruthLens is transparent about what it can and cannot do:
 
 - No detector catches 100% of AI-generated media — this is an active research problem
-- EfficientNet-B7 is not yet fine-tuned on deepfake datasets — fine-tuning on FaceForensics++/DFDC is planned
-- Newer generators (MiniMax, Kling, Hailuo, Nano Banana Pro etc.) are harder to detect than older GANs
+- `AI-image-detector` ViT is trained on a broad real vs AI dataset but may not cover every new generator
+- Newer generators (MiniMax, Kling, Hailuo, etc.) are harder to detect than older GANs
 - Results should be treated as **evidence to inform judgment**, not binary verdicts
 
 ---
@@ -176,7 +176,7 @@ TruthLens is transparent about what it can and cannot do:
 - [x] Repo setup
 - [x] Next.js frontend with black/green terminal UI
 - [x] FastAPI backend with WebSocket streaming
-- [x] EfficientNet-B7 on CUDA with FP16
+- [x] AI-image-detector ViT on CUDA with FP16 (replaces EfficientNet-B7 random-head)
 - [x] CLIP zero-shot classifier
 - [x] Weighted ensemble pipeline
 - [x] InsightFace real face extraction on CUDA

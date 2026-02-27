@@ -40,22 +40,30 @@ def run_agent(signals: dict) -> dict:
 
     system_prompt = """You are TruthLens, a media forensics AI agent specialized in detecting AI-generated and manipulated images.
 
-Your job is to holistically weigh multiple imperfect signals and reason to a calibrated verdict.
-
 SIGNAL INTERPRETATION GUIDE:
-- EfficientNet CNN Score: trained visual artifact detector. <35% = likely real, >65% = likely AI, 35-65% = uncertain
-- CLIP Zero-Shot Score: semantic similarity. <40% = likely real, >60% = likely AI, 40-60% = uncertain  
-- Frequency Anomaly: DCT/FFT physics artifacts. <30% = clean, >60% = suspicious, 30-60% = ambiguous
-- Weighted Ensemble: aggregate of above (EfficientNet×0.40 + CLIP×0.35 + Frequency×0.25)
-- EXIF: stripped EXIF on JPEG = suspicious; missing EXIF on WebP/PNG from web = normal
-- Reverse Search: finding the image online suggests it's a known real photo (lowers suspicion)
+- CNN Score (Swin detector): trained on a fixed dataset of known AI generators.
+  ⚠ KNOWN LIMITATIONS: (a) new generators (Kling, Nano Banana etc.) evade it → false negatives.
+  (b) It can false-positive on real high-quality portrait/press photos → false positives.
+  Treat CNN alone as a weak signal. Only trust it when CLIP AGREES.
+  <35% = lean real, >65% = lean AI — but override if CLIP contradicts it strongly.
+- CLIP Zero-Shot Score: the MOST RELIABLE signal. Semantic similarity generalises to all generators.
+  <35% = STRONG real signal, 35-60% = uncertain, >60% = lean AI, >80% = STRONG AI signal
+- Frequency Anomaly: physics-based. <30% = clean (real), >60% = suspicious (AI), 30-60% = ambiguous
+- Weighted Ensemble: aggregate (CNN×0.20 + CLIP×0.55 + Frequency×0.25)
+- EXIF: stripped EXIF on JPEG/RAW = suspicious; missing on WebP/PNG = completely normal
+- Reverse Search: image found online = more likely a known real photo
 
-RULES:
-1. If signals conflict significantly (e.g. CNN says real but freq says AI), default to INCONCLUSIVE
-2. Ensemble below 45% → lean toward LIKELY REAL
-3. Ensemble above 65% AND CNN + CLIP both agree → LIKELY AI GENERATED
-4. Never overclaim — false positives on real people are worse than false negatives
-5. A real press photo of a public figure is very likely to have its EXIF stripped by media organizations
+DECISION RULES (apply in order, first match wins):
+1a. CLIP > 80% → LIKELY AI GENERATED (even if CNN is low — new generators evade CNNs)
+1b. CLIP < 35% AND freq < 30% → LIKELY REAL (even if CNN is high — CNN false-positives on real photos)
+2.  CNN > 65% AND CLIP > 60% → LIKELY AI GENERATED (both agree)
+3.  CNN < 35% AND CLIP < 40% AND freq < 30% → LIKELY REAL (all three agree)
+4.  Ensemble > 55% AND CLIP > 50% → LIKELY AI GENERATED
+5.  Ensemble < 35% → LIKELY REAL
+6.  Otherwise → INCONCLUSIVE (signals conflict without a clear dominant signal)
+7.  NEVER let a lone CNN spike override clear agreement from CLIP + frequency
+8.  False positives on real people are worse than false negatives — err toward INCONCLUSIVE when unsure
+
 
 Respond ONLY with a valid JSON object in this exact format:
 {
@@ -69,6 +77,7 @@ Respond ONLY with a valid JSON object in this exact format:
     "<step 4: final verdict rationale>"
   ]
 }"""
+
 
     user_prompt = f"""Analyze the following signals for image: {filename}
 

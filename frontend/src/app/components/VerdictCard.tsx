@@ -52,7 +52,7 @@ export default function VerdictCard({ result }: { result: AnalysisResult }) {
 
       {/* Signal Breakdown */}
       <div className="grid grid-cols-2 gap-4 pt-1">
-        <SignalBar label="ML Model Score" value={result.ml_score} isFake={isFake} />
+        <SignalBar label="AI Detector Score" value={result.ml_score} isFake={isFake} />
         <SignalBar label="Frequency Anomaly" value={result.frequency_score} isFake={isFake} />
       </div>
 

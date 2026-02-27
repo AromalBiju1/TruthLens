@@ -1,16 +1,17 @@
 import io
 from PIL import Image
 import torch
-from transformers import ViTForImageClassification, ViTImageProcessor
+from transformers import AutoModelForImageClassification, AutoImageProcessor
 
 # ── Device setup ──────────────────────────────────────────────────────────────
 _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _model = None
 _processor = None
 
-# Using umm-maybe/AI-image-detector — ViT trained specifically on real vs AI-generated images.
+# Using umm-maybe/AI-image-detector — Swin Transformer fine-tuned on real vs AI-generated images.
 # Replaces the original tf_efficientnet_b7 + random untrained Linear(in, 2) head
 # which was outputting meaningless random logits (pretrained backbone, zero-trained classifier).
+# Auto classes are used so the correct architecture is inferred from config.json automatically.
 MODEL_ID = "umm-maybe/AI-image-detector"
 
 
@@ -21,8 +22,8 @@ def _load_model():
 
     print(f"[TruthLens] Loading AI-image-detector on {_device}...")
 
-    _processor = ViTImageProcessor.from_pretrained(MODEL_ID)
-    _model = ViTForImageClassification.from_pretrained(MODEL_ID)
+    _processor = AutoImageProcessor.from_pretrained(MODEL_ID)
+    _model = AutoModelForImageClassification.from_pretrained(MODEL_ID)
     _model = _model.to(_device)
     _model.eval()
 

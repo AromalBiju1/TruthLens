@@ -60,6 +60,5 @@ def frequency_analysis(image_bytes: bytes) -> float:
         return round(float(combined), 2)
 
     except Exception as e:
-        # FIX: original code had `e` out of scope in the except block (NameError)
         print(f"[TruthLens] Frequency analysis error: {e}")
         return 50.0

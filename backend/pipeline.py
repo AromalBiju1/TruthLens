@@ -9,10 +9,15 @@ from models.face_extractor import extract_face, face_to_bytes
 from models.gradcam import generate_heatmap
 from functools import partial
 
+# Weight rationale:
+# CLIP gets the highest weight because its zero-shot semantic approach generalizes
+# to new AI generators (Nano Banana, Kling, MiniMax etc.) that the CNN hasn't seen.
+# The Swin CNN was trained on a fixed dataset — it reliably catches known generators
+# but can miss newer ones. Frequency analysis is physics-based and always valid.
 WEIGHTS = {
-    "efficientnet": 0.40,
-    "clip":         0.35,
-    "frequency":    0.25,
+    "efficientnet": 0.20,   # Swin CNN — unreliable alone; false positives AND false negatives observed
+    "clip":         0.55,   # CLIP zero-shot — most reliable; correct on both test cases
+    "frequency":    0.25,   # DCT/FFT — physics-based, model-agnostic
 }
 
 def compute_ensemble(efficientnet_score: float, clip_score: float, freq_score: float) -> float:
@@ -91,7 +96,7 @@ async def run_pipeline(job_id: str, image_bytes: bytes, filename: str, manager):
 
         # reverse search
         await send_step(manager, job_id, "reverse", "running")
-        search_results = await asyncio.to_thread(reverse_search,image_bytes,filename)
+        search_results = await asyncio.to_thread(reverse_search, image_bytes, filename, exif_data)
         await send_step(manager, job_id, "reverse", "done", f"{len(search_results)} sources found")
 
         # agent
