@@ -29,7 +29,7 @@ export default function ReverseSearchResults({ results }: { results: SearchResul
               <img
                 src={r.thumbnail}
                 alt=""
-                className="w-12 h-12 rounded object-cover flex-shrink-0 bg-white/5 border border-[#00ff46]/10"
+                className="w-12 h-12 rounded object-cover shrink-0 bg-white/5 border border-[#00ff46]/10"
               />
             )}
             <div className="min-w-0 flex-1">
@@ -41,7 +41,7 @@ export default function ReverseSearchResults({ results }: { results: SearchResul
                 <p className="text-xs text-[#00ff46]/50 mt-1">⊕ {r.date}</p>
               )}
             </div>
-            <ExternalLink className="w-3 h-3 text-white/10 group-hover:text-[#00ff46]/50 flex-shrink-0 mt-0.5 transition-colors" />
+            <ExternalLink className="w-3 h-3 text-white/10 group-hover:text-[#00ff46]/50 shrink-0 mt-0.5 transition-colors" />
           </a>
         ))}
       </div>
