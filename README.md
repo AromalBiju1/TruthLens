@@ -12,11 +12,12 @@ TruthLens is a full-stack media forensics platform that analyzes images and vide
 
 ## ✨ Features
 
-- 🧠 **CNN Ensemble Detection** — EfficientNet-B7 + CLIP-based classifier fine-tuned on FaceForensics++, DFDC, and Celeb-DF datasets
-- 📡 **Frequency Domain Analysis** — DCT/FFT artifact detection that catches signals invisible to the human eye, generalized across new AI generators
-- 🔎 **Reverse Image Search** — Cross-references the uploaded media against the web to establish provenance and detect reused or manipulated originals
-- 🤖 **LLM Reasoning Agent** — An AI agent that synthesizes all signals (ML score, frequency anomalies, search provenance, EXIF metadata) into a transparent, explainable verdict
-- 🗺️ **Grad-CAM Heatmaps** — Visual explanation of which regions of the image triggered the detection
+- 🧠 **CNN Ensemble Detection** — EfficientNet-B7 + CLIP ViT-L/14 zero-shot classifier running concurrently on CUDA
+- 👤 **Real Face Extraction** — InsightFace buffalo_l detects, crops and aligns faces before model inference
+- 📡 **Frequency Domain Analysis** — DCT/FFT artifact detection that catches physics-level signals invisible to the human eye
+- 🔎 **Reverse Image Search** — Cross-references uploaded media against the web to establish provenance
+- 🤖 **LLM Reasoning Agent** — LangChain + Groq (llama-3.3-70b) synthesizes all signals into a transparent, explainable verdict
+- 🗺️ **Grad-CAM Heatmaps** — Visual explanation of which facial regions triggered the detection
 - 📊 **Confidence Scoring** — Never just "REAL" or "FAKE" — always a calibrated confidence score with evidence breakdown
 - ⚡ **Real-time Progress** — WebSocket-powered live updates as each analysis step completes
 
@@ -32,23 +33,21 @@ TruthLens is a full-stack media forensics platform that analyzes images and vide
                │ REST / WebSocket
 ┌──────────────▼──────────────────┐
 │       FastAPI Backend (Python)  │
-│  - /analyze endpoint            │
-│  - WebSocket progress streaming │
-│  - Celery + Redis job queue     │
+│  - POST /analyze                │
+│  - WebSocket /ws/{job_id}       │
+│  - Async background pipeline    │
+│  - In-memory job store          │
 └──────┬──────────────┬───────────┘
        │              │
-┌──────▼──────┐ ┌─────▼───────┐
-│  ML Service │ │ Agent Layer │
-│  PyTorch    │ │  LangChain  │
-│  EfficientNet│ │  + Groq LLM │
-│  CLIP + FFT │ └─────────────┘
-└─────────────┘
-               │
-┌──────────────▼──────────────────┐
-│    Supabase (PostgreSQL)        │
-│    Cloudflare R2 (Media)        │
-│    Upstash Redis (Queue)        │
-└─────────────────────────────────┘
+┌──────▼──────────┐ ┌─▼───────────┐
+│   ML Pipeline   │ │ Agent Layer │
+│                 │ │             │
+│ InsightFace     │ │ LangChain   │
+│ EfficientNet-B7 │ │ + Groq LLM  │
+│ CLIP ViT-L/14   │ │ llama-3.3   │
+│ DCT/FFT Freq    │ │ 70b         │
+│ Grad-CAM        │ └─────────────┘
+└─────────────────┘
 ```
 
 ---
@@ -58,14 +57,14 @@ TruthLens is a full-stack media forensics platform that analyzes images and vide
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 14, TypeScript, TailwindCSS |
-| Backend | FastAPI, Python 3.11+ |
-| ML Models | PyTorch, HuggingFace Transformers, timm, OpenCV |
-| Agent | LangChain + Groq (Llama 3) |
-| Reverse Search | SerpAPI + TinEye API |
-| Database | Supabase (PostgreSQL) |
-| Media Storage | Cloudflare R2 |
-| Queue | Celery + Upstash Redis |
-| Deployment | Vercel (frontend) + Render (backend) |
+| Backend | FastAPI, Python 3.14, Async pipeline |
+| Face Extraction | InsightFace buffalo_l on CUDA |
+| ML Models | EfficientNet-B7 (FP16), CLIP ViT-L/14 |
+| Frequency Analysis | DCT/FFT via NumPy + OpenCV |
+| Explainability | Grad-CAM heatmap overlay |
+| Agent | LangChain + Groq (llama-3.3-70b) |
+| Reverse Search | DuckDuckGo Search |
+| Deployment | Vercel (frontend) + Docker (backend) |
 
 ---
 
@@ -74,7 +73,7 @@ TruthLens is a full-stack media forensics platform that analyzes images and vide
 ### Prerequisites
 - Node.js 18+
 - Python 3.11+
-- pip
+- NVIDIA GPU (recommended) or CPU
 
 ### Frontend
 
@@ -88,27 +87,23 @@ npm run dev
 
 ```bash
 cd backend
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn main:app --reload --port 8000
 ```
 
 ### Environment Variables
 
-Create a `.env.local` in `/frontend`:
+Create `.env.local` in `/frontend`:
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-Create a `.env` in `/backend`:
+Create `.env` in `/backend`:
 ```
-SUPABASE_URL=
-SUPABASE_KEY=
-SERPAPI_KEY=
-TINEYE_API_KEY=
-GROQ_API_KEY=
-CLOUDFLARE_R2_KEY=
-CLOUDFLARE_R2_SECRET=
-UPSTASH_REDIS_URL=
+GROQ_API_KEY=your_groq_key_here
+SERPAPI_KEY=placeholder
 ```
 
 ---
@@ -117,50 +112,51 @@ UPSTASH_REDIS_URL=
 
 ```
 TruthLens/
-├── frontend/                  # Next.js app
-│   ├── app/
-│   │   ├── page.tsx           # Home / upload
-│   │   ├── results/[id]/      # Results dashboard
-│   │   └── api/               # Next.js API routes
-│   └── components/
-│       ├── UploadZone.tsx
-│       ├── AnalysisProgress.tsx
-│       ├── VerdictCard.tsx
-│       ├── HeatmapViewer.tsx
-│       └── ReverseSearchResults.tsx
+├── frontend/
+│   └── src/
+│       ├── app/
+│       │   ├── page.tsx               # Home / upload
+│       │   └── results/[id]/
+│       │       └── page.tsx           # Results dashboard
+│       └── components/
+│           ├── UploadZone.tsx
+│           ├── AnalysisProgress.tsx
+│           ├── VerdictCard.tsx
+│           ├── HeatmapViewer.tsx
+│           ├── AgentLog.tsx
+│           └── ReverseSearchResults.tsx
 │
-├── backend/                   # FastAPI + ML
-│   ├── main.py
-│   ├── models/                # ML model wrappers
-│   │   ├── efficientnet.py
-│   │   ├── clip_classifier.py
-│   │   └── frequency_analyzer.py
-│   ├── agent/                 # LangChain agent + tools
-│   │   ├── agent.py
-│   │   └── tools/
-│   │       ├── reverse_search.py
-│   │       ├── exif_extractor.py
-│   │       └── face_comparator.py
-│   ├── workers/               # Celery tasks
-│   └── requirements.txt
-│
-└── README.md
+└── backend/
+    ├── main.py                        # FastAPI routes + WebSocket
+    ├── pipeline.py                    # Analysis orchestrator
+    ├── models/
+    │   ├── efficientnet.py            # EfficientNet-B7 on CUDA
+    │   ├── clip_classifier.py         # CLIP zero-shot classifier
+    │   ├── frequency.py               # DCT/FFT analysis
+    │   ├── face_extractor.py          # InsightFace extraction
+    │   └── gradcam.py                 # Grad-CAM heatmap
+    ├── agent/
+    │   └── agent.py                   # LangChain + Groq verdict
+    ├── tools/
+    │   ├── exif.py                    # EXIF metadata extractor
+    │   └── reverse_search.py          # DuckDuckGo search
+    └── requirements.txt
 ```
 
 ---
 
 ## 🧪 Detection Approach
 
-TruthLens uses a **multi-signal ensemble** rather than relying on a single model — because no single model reliably catches all AI generators in 2025/2026.
+TruthLens uses a **multi-signal weighted ensemble** rather than relying on a single model — because no single model reliably catches all AI generators in 2025/2026.
 
-| Signal | What it catches |
-|---|---|
-| EfficientNet-B4 | Visual artifacts, facial inconsistencies |
-| CLIP Classifier | Generalizes to unseen generators including new diffusion models |
-| DCT Frequency Analysis | Physics-level artifacts all generators leave behind |
-| Reverse Image Search | Provenance — was this image online before, and where? |
-| EXIF Metadata | Stripped metadata is a strong signal of manipulation |
-| LLM Agent | Synthesizes all signals into a human-readable verdict |
+| Signal | Weight | What it catches |
+|---|---|---|
+| EfficientNet-B7 | 40% | Visual artifacts, facial inconsistencies |
+| CLIP ViT-L/14 | 35% | Generalizes to unseen generators including MiniMax, Kling, Hailuo |
+| DCT/FFT Frequency | 25% | Physics-level artifacts all generators leave behind |
+| EXIF Metadata | signal | Stripped metadata is a strong manipulation indicator |
+| Reverse Image Search | signal | Provenance — was this image online before? |
+| LLM Agent | synthesis | Weighs all signals into a human-readable verdict |
 
 ---
 
@@ -169,27 +165,31 @@ TruthLens uses a **multi-signal ensemble** rather than relying on a single model
 TruthLens is transparent about what it can and cannot do:
 
 - No detector catches 100% of AI-generated media — this is an active research problem
-- Newer generators (MiniMax, Kling, Hailuo, etc.) are harder to detect than older GANs
+- EfficientNet-B7 is not yet fine-tuned on deepfake datasets — fine-tuning on FaceForensics++/DFDC is planned
+- Newer generators (MiniMax, Kling, Hailuo, Nano Banana Pro etc.) are harder to detect than older GANs
 - Results should be treated as **evidence to inform judgment**, not binary verdicts
-- The system is updated periodically but will always lag behind the latest generators
 
 ---
 
 ## 📌 Roadmap
 
 - [x] Repo setup
-- [ ] FastAPI backend scaffold
-- [ ] EfficientNet-B4 integration
-- [ ] CLIP classifier integration
-- [ ] DCT frequency analyzer
-- [ ] Reverse image search (SerpAPI + TinEye)
-- [ ] LangChain agent
-- [ ] Next.js frontend
-- [ ] WebSocket live progress
-- [ ] Grad-CAM heatmap overlay
-- [ ] Supabase + Cloudflare R2 integration
-- [ ] Vercel + Render deployment
-- [ ] Video support (frame-level + temporal)
+- [x] Next.js frontend with black/green terminal UI
+- [x] FastAPI backend with WebSocket streaming
+- [x] EfficientNet-B7 on CUDA with FP16
+- [x] CLIP zero-shot classifier
+- [x] Weighted ensemble pipeline
+- [x] InsightFace real face extraction on CUDA
+- [x] DCT/FFT frequency domain analysis
+- [x] EXIF metadata extraction
+- [x] Grad-CAM heatmap visualization
+- [x] LangChain + Groq agent verdict
+- [x] DuckDuckGo reverse search
+- [ ] Fine-tuning on FaceForensics++ / DFDC
+- [ ] Video support (frame extraction + temporal LSTM)
+- [ ] Test suite (unit + integration + model evaluation)
+- [ ] Docker deployment
+- [ ] Vercel deployment
 
 ---
 
