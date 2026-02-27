@@ -16,7 +16,9 @@ def _load_model():
 
     print(f"[TruthLens] Loading EfficientNet-B7 on {_device}...")
 
-    _model = timm.create_model("efficientnet_b7", pretrained=True, num_classes=2)
+    _model = timm.create_model("tf_efficientnet_b7", pretrained=True)
+    in_features = _model.classifier.in_features
+    _model.classifier = torch.nn.Linear(in_features, 2)
     _model = _model.to(_device)
     _model.eval()
 
@@ -65,3 +67,10 @@ def get_device_info() -> dict:
         "model": "EfficientNet-B7",
         "precision": "FP16" if torch.cuda.is_available() else "FP32",
     }
+
+
+
+def get_model_and_transform():
+    """Expose model + transform for Grad-CAM."""
+    _load_model()
+    return _model, _transform, _device

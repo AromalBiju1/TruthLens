@@ -1,94 +1,122 @@
 import asyncio
-from models.efficientnet import run_efficientnet
-from models.frequency import run_frequency_analysis
+from models.efficientnet import run_efficientnet,get_model_and_transform
+from models.clip_classifier import run_clip
+from models.frequency import frequency_analysis
 from tools.exif import extract_exif
-from tools.reverse_search import reverse_search_mock
+from tools.reverse_search import reverse_search
 from agent.agent import run_agent
+from models.face_extractor import extract_face, face_to_bytes
+from models.gradcam import generate_heatmap
 
-async def send_step( manager,job_id:str, step_id:str, status:str,detail:str = ""):
-    await manager.send(job_id,{
-        "type":"step_update",
-        "step_id" :step_id,
-        "status" : status,
-        "detail":detail
+
+WEIGHTS = {
+    "efficientnet": 0.40,
+    "clip":         0.35,
+    "frequency":    0.25,
+}
+
+def compute_ensemble(efficientnet_score: float, clip_score: float, freq_score: float) -> float:
+    return round(
+        efficientnet_score * WEIGHTS["efficientnet"] +
+        clip_score         * WEIGHTS["clip"] +
+        freq_score         * WEIGHTS["frequency"],
+        2
+    )
+
+async def send_step(manager, job_id: str, step_id: str, status: str, detail: str = ""):
+    await manager.send(job_id, {
+        "type": "step_update",
+        "step_id": step_id,
+        "status": status,
+        "detail": detail
     })
 
-
-
-
-async def run_pipeline(job_id:str,image_byes:bytes,filename:str,manager):
+async def run_pipeline(job_id: str, image_bytes: bytes, filename: str, manager):
     try:
-        #upload processing
-        await send_step(manager,job_id,"upload","running" )
-        await asyncio.sleep(0.5)
-        await send_step(manager,job_id,"upload","done",f"Received{len(image_bytes) // 1024}KB") 
+        # upload
+        await send_step(manager, job_id, "upload", "running")
+        await asyncio.sleep(0.3)
+        await send_step(manager, job_id, "upload", "done", f"Received {len(image_bytes) // 1024}KB")
 
-        #face extraction
-        await send_step(manager,job_id,"face","running")
-        await asyncio.sleep(0.5)
-        await send_step(manager,job_id,"face","done","Face region identified") 
+        # face extraction
+        await send_step(manager, job_id, "face", "running")
+        face_array, face_meta = await asyncio.to_thread(extract_face, image_bytes)
 
-        #cnn ensemble
-        await send_step(manager,job_id,"ml","running")
-        ml_score = await asyncio.to_thread(run_efficientnet,image_byes)
-        await send_step(manager,job_id,"ml","done",f"ML score:{ml_score:.2f}%")
+        if face_array is None:
+            await send_step(manager, job_id, "face", "done", face_meta["message"])
+            analysis_bytes = image_bytes
+        else:
+            await send_step(manager, job_id, "face", "done",
+                f"{face_meta['faces_found']} face(s) — confidence: {face_meta['confidence']}%")
+            analysis_bytes = face_to_bytes(face_array)
 
+        # EfficientNet + CLIP running concurrently
+        await send_step(manager, job_id, "ml", "running", "Running EfficientNet-B7 + CLIP...")
+        efficientnet_score, clip_score = await asyncio.gather(
+            asyncio.to_thread(run_efficientnet, analysis_bytes),
+            asyncio.to_thread(run_clip, analysis_bytes),
+        )
+        await send_step(manager, job_id, "ml", "done",
+            f"EfficientNet: {efficientnet_score:.1f}% | CLIP: {clip_score:.1f}%")
+        
+        #gradcam heat map
 
-        #frequency analysis
-        await send_step(manager,job_id,"frequency","running")
-        freq_score = await asyncio.to_thread(run_frequency_analysis,image_byes)
-        await send_step(manager,job_id,"frequency","done",f"Frequency anomaly: {freq_score:.2f}%")
+        await send_step(manager, job_id, "ml", "running", "Generating Grad-CAM heatmap...")
+        model, transform, device = get_model_and_transform()
+        heatmap_b64 = await asyncio.to_thread(
+            generate_heatmap, model, transform, device, analysis_bytes
+        )
 
+        # frequency
+        await send_step(manager, job_id, "frequency", "running")
+        freq_score = await asyncio.to_thread(frequency_analysis, image_bytes)
+        final_ensemble = compute_ensemble(efficientnet_score, clip_score, freq_score)
+        await send_step(manager, job_id, "frequency", "done", f"Frequency anomaly: {freq_score:.1f}%")
 
-        #exif metadata
-        await send_step(manager,job_id,"exif","running")
-        exif_data = await asyncio.to_thread(extract_exif,image_byes)
-        exif_detail = "Metadata stripped - suspicious" if exif_data.get("stripped") else "Metadata Intact"
-        await send_step(manager,job_id,"exif","done",exif_detail)
+        # exif
+        await send_step(manager, job_id, "exif", "running")
+        exif_data = await asyncio.to_thread(extract_exif, image_bytes)
+        exif_detail = "Metadata stripped — suspicious" if exif_data.get("stripped") else "Metadata intact"
+        await send_step(manager, job_id, "exif", "done", exif_detail)
 
-        #reverse img search
+        # reverse search
+        await send_step(manager, job_id, "reverse", "running")
+        search_results = await asyncio.to_thread(reverse_search,image_bytes,filename)
+        await send_step(manager, job_id, "reverse", "done", f"{len(search_results)} sources found")
 
-        await send_step(manager,job_id,"reverse","running")
-        search_results = await asyncio.to_thread(reverse_search_mock)
-        await send_step(manager,job_id,"reverse","done",f"{len(search_results)} sources found")
-
-        #AI agent verdict
-
-        await send_step(manager,job_id,"agent","running")
-        verdict = await asyncio.to_thread(run_agent,{
-            "ml_score": ml_score,
+        # agent
+        await send_step(manager, job_id, "agent", "running", "Synthesizing all signals...")
+        verdict = await asyncio.to_thread(run_agent, {
+            "efficientnet_score": efficientnet_score,
+            "clip_score": clip_score,
             "freq_score": freq_score,
+            "ensemble_score": final_ensemble,
             "exif": exif_data,
             "search_results": search_results,
             "filename": filename,
         })
-        await send_step(manager,job_id,"agent","done","verdict ready")
+        await send_step(manager, job_id, "agent", "done", "Verdict ready")
 
-
-
-        #final result
-
-        await manager.send(job_id,{
+        # final result
+        await manager.send(job_id, {
             "type": "result",
             "data": {
                 "verdict": verdict["verdict"],
                 "confidence": verdict["confidence"],
-                "ml_score": round(ml_score),
+                "efficientnet_score": round(efficientnet_score),
+                "clip_score": round(clip_score),
+                "ml_score": round(final_ensemble),
                 "frequency_score": round(freq_score),
                 "summary": verdict["summary"],
                 "agent_reasoning": verdict["reasoning"],
                 "reverse_search": search_results,
-
+                "heatmap":heatmap_b64
             }
         })
 
-
     except Exception as e:
-        print(f"Pipeline error for job {job_id}: {e}")
+        print(f"[TruthLens] Pipeline error for job {job_id}: {e}")
         await manager.send(job_id, {
             "type": "error",
             "message": str(e)
         })
-
-
-

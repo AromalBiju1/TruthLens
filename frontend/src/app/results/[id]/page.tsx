@@ -6,6 +6,7 @@ import VerdictCard from '../../components/VerdictCard';
 import ReverseSearchResults from '../../components/ReverseSearchResults';
 import AgentLog from '../../components/AgentLog';
 import logo from '../../assets/logo.png'
+import HeatmapViewer from '../../components/HeatmapViewer'
 export type AnalysisStep = {
     id:string,
     label:string,
@@ -20,9 +21,9 @@ export type AnalysisResult = {
     ml_score : number
     frequency_score : number
     summary :string
-    heatmap_url? :string
     reverse_search : {url :string;title:string;thumbnail:string;date?:string}[];
     agent_reasoning: string[];
+    heatmap? :string;
 
 }
 
@@ -112,6 +113,7 @@ export default function ResultsPage() {
         {iscomplete && result && (
           <>
             <VerdictCard result={result} />
+             <HeatmapViewer heatmap={result.heatmap} />
             <AgentLog reasoning={result.agent_reasoning} />
             {result.reverse_search.length > 0 && (
               <ReverseSearchResults results={result.reverse_search} />

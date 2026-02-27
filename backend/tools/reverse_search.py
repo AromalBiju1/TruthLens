@@ -1,27 +1,36 @@
 import os
 
 
-def reverse_search_mock() -> list:
-    """
-    Mock reverse image search results for development.
-    Swap this with real SerpAPI / googlesearch call when ready.
-    """
-    return [
-        {
-            "url": "https://example.com/original-photo",
-            "title": "Possible original source found",
-            "thumbnail": "",
-            "date": "2024-03-10"
-        },
-        {
-            "url": "https://socialmedia.example.com/post/123",
-            "title": "Shared on social media",
-            "thumbnail": "",
-            "date": "2024-05-22"
-        },
-    ]
+from ddgs import DDGS
+import base64
 
 
+
+def reverse_search(image_bytes: bytes, filename: str = "", exif: dict = {}) -> list:
+    try:
+        # Build a meaningful query from what we know
+        query = filename.replace("_", " ").replace("-", " ").split(".")[0]
+        if not query or query in ["image", "photo", "img", "4", "unnamed"]:
+            query = "AI generated face deepfake"
+
+        with DDGS() as ddgs:
+            results = list(ddgs.images(
+                keywords=query,
+                max_results=5
+            ))
+
+        return [
+            {
+                "url": r.get("url", ""),
+                "title": r.get("title", ""),
+                "thumbnail": r.get("thumbnail", ""),
+                "date": None
+            }
+            for r in results
+        ]
+    except Exception as e:
+        print(f"[TruthLens] Reverse search error: {e}")
+        return []
 def reverse_search_serpapi(image_url: str) -> list:
     """
     Real SerpAPI reverse image search.

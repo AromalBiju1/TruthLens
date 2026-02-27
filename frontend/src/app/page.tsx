@@ -21,13 +21,13 @@ export default function Home() {
       body: formData,
     });
 
-    if (!res.ok) throw new Error("Backend not available");
+    if (!res.ok) throw new Error(`Backend error: ${res.status}`);
 
     const data = await res.json();
     router.push(`/results/${data.job_id}`);
   } catch (err) {
-    console.warn("Backend unavailable, using mock");
-    router.push(`/results/mock-job-123`);
+    console.error("Upload failed:", err);
+    setIsUploading(false);
   }
 };
 

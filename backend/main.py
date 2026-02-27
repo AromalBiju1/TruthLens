@@ -2,7 +2,7 @@ import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from typing import Dict
-from fastapi import FastAPI,UploadFile,File,Websocket,WebSocketDisconnect
+from fastapi import FastAPI,UploadFile,File,WebSocket,WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pipeline import run_pipeline
@@ -17,11 +17,11 @@ class ConnectionManager:
 
 
 
-    async def connect(self,job_id:str,ws:Websocket):
+    async def connect(self,job_id:str,ws:WebSocket):
         await ws.accept()
         self.active[job_id] = ws
 
-    def disconnect(sel,job_id:str):
+    def disconnect(self,job_id:str):
         self.active.pop(job_id,None)
 
     async def send(self,job_id:str,data:dict):
@@ -54,7 +54,7 @@ async def root():
     return {"status":"TruthLens backend running"}
     
 
-@app.post("/analyse")
+@app.post("/analyze")
 async def analyse(file: UploadFile=File(...)):
     job_id = str(uuid.uuid4())
     contents = await file.read()
@@ -68,7 +68,7 @@ async def analyse(file: UploadFile=File(...)):
 
 
 @app.websocket("/ws/{job_id}")
-async def websocket_endpoint(websocket:Websocket,job_id:str):
+async def websocket_endpoint(websocket:WebSocket,job_id:str):
     await manager.connect(job_id,websocket) 
     try:
         while True:

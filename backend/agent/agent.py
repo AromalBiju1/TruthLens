@@ -1,7 +1,7 @@
 import os
 import json
 from langchain_groq import ChatGroq
-from langchain.schema import HumanMessage,SystemMessage
+from langchain_core.messages import HumanMessage,SystemMessage
 
 def run_agent(signals: dict)-> dict:
     """takes all analysis and uses groq llm to synthesize a final verdict with reasoning outputs"""
